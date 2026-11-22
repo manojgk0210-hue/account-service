@@ -1,0 +1,16 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: account-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/accountdb}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME:accountuser}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update # Dev only; production should use Flyway.
+    open-in-view: false
+jwt:
+  secret: ${JWT_SECRET}

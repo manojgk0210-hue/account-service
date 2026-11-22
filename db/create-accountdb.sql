@@ -1,0 +1,2 @@
+CREATE USER accountuser WITH PASSWORD '<ACCOUNT_DB_PASSWORD>';
+CREATE DATABASE accountdb OWNER accountuser;
