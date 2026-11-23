@@ -1,0 +1,87 @@
+pipeline {
+    agent any
+
+    tools {
+        maven 'maven-3.10'
+    }
+
+    environment {
+        IMAGE_NAME    = 'manojgk1089/account-service'
+        IMAGE_TAG     = "v1.${BUILD_NUMBER}"
+        AWS_REGION    = 'ap-southeast-2'
+        CLUSTER_NAME  = 'manojgk-banking-cluster'
+        K8S_NAMESPACE = 'dev'
+    }
+
+    stages {
+        stage('Check Out') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Check Java and Maven') {
+            steps {
+                sh 'java --version'
+                sh 'mvn --version'
+            }
+        }
+
+        stage('Build JAR File') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+
+        stage('Build Image') {
+            steps {
+                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
+            }
+        }
+
+        stage('Push Image to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'USERNAME',
+                    passwordVariable: 'PASSWORD'
+                )]) {
+                    sh '''
+                        set -e
+                        echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
+                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                        docker logout
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+                sh '''
+                    set -e
+                    aws eks update-kubeconfig \
+                        --region ${AWS_REGION} \
+                        --name ${CLUSTER_NAME}
+
+                    kubectl set image deployment/account-service \
+                        account-service=${IMAGE_NAME}:${IMAGE_TAG} \
+                        -n ${K8S_NAMESPACE}
+
+                    kubectl rollout status deployment/account-service \
+                        -n ${K8S_NAMESPACE} \
+                        --timeout=180s
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Deployed ${IMAGE_NAME}:${IMAGE_TAG} to ${K8S_NAMESPACE}"
+        }
+        failure {
+            echo 'Build or deployment failed. Check the console output.'
+        }
+    }
+}

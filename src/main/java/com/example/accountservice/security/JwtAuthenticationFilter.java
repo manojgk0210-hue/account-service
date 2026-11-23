@@ -21,6 +21,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final ObjectMapper mapper;
     public JwtAuthenticationFilter(JwtUtil jwt, ObjectMapper mapper) { this.jwt = jwt; this.mapper = mapper; }
 
+    @Override protected boolean shouldNotFilter(HttpServletRequest request) {
+        // CORS preflights carry no JWT; they must reach Spring Security's CORS handling.
+        return "OPTIONS".equalsIgnoreCase(request.getMethod());
+    }
+
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
         throws ServletException, IOException {
         String header = request.getHeader("Authorization");
